@@ -1,7 +1,5 @@
 # coding=UTF-8
-
 import math
-
 from collections import defaultdict
 
 def parse_sent(sent, transition, emission):
@@ -37,7 +35,8 @@ def convert_to_probabilities(matrix):
 transition = defaultdict(lambda: defaultdict(float))
 emission = defaultdict(lambda: defaultdict(float))
 
-input_file = open("test.txt")
+input_file = open("catalan_corpus_train_tagged.txt")
+output_file = open("hmmmodel.txt","w")
 
 for l in input_file:
 	parse_sent(l, transition, emission)
@@ -45,15 +44,18 @@ for l in input_file:
 
 convert_to_probabilities(transition)
 convert_to_probabilities(emission)
-print "~~~~~~~~~~~~~Transition Probabilities~~~~~~~~~~~~~~~~~~~"
+output_file.write("~~~~~~~~~~~~~Transition Probabilities~~~~~~~~~~~~~~~~~~~\n")
+output_file.write(str(len(transition)) + "\n")
 
 for key in transition:
-	print key + " " + str(transition[key])
+	output_file.write(key + " " + str(transition[key]) + "\n")
 
-print "~~~~~~~~~~~~~Emission Probabilities~~~~~~~~~~~~~~~~~~~"
+output_file.write("~~~~~~~~~~~~~Emission Probabilities~~~~~~~~~~~~~~~~~~~\n")
+output_file.write(str(len(emission)) + "\n")
 
 for key in emission:
-	print key + " " + str(emission[key])
-# parse_sent(s, transition, emission)
+	output_file.write(key + " " + str(emission[key]) + "\n")
 
-# print transition,emission
+
+input_file.close()
+output_file.close()
