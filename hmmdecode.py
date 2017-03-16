@@ -13,91 +13,70 @@ def load_model(hmm_path, transition, emission):
 	n = int(file.readline().rstrip("\n"))
 	for i in range(0, n):
 		tag = file.readline().rstrip("\n")
-		transition[tag] = defaultdict(float, ast.literal_eval(file.readline().rstrip("\n")))
+		transition[tag] = defaultdict(lambda: -99999.0, ast.literal_eval(file.readline().rstrip("\n")))
 
 	file.readline()
 
 	m = int(file.readline().rstrip("\n"))
 	for i in range(0, m):
 		tag = file.readline().rstrip("\n")
-		emission[tag] = defaultdict(float, ast.literal_eval(file.readline().rstrip("\n")))
+		emission[tag] = defaultdict(lambda: -99999.0, ast.literal_eval(file.readline().rstrip("\n")))
 
 	file.readline()
 
 	vocabulary = defaultdict(int, ast.literal_eval(file.readline().rstrip("\n")))
 	return vocabulary
-	# print vocabulary
-	# raw_input()
-
-def get_log_emission(value):
-	if value != 0.0:
-		return math.log(value)
-	else:
-		return MIN_VALUE
 
 
-def tag_data(sent, transition, emission, vocabulary):
+def tag_data(sent, transition, emission, vocabulary, tag_list):
 	
 	words = sent.split()
 	probability = defaultdict(float)
 	backpointer = defaultdict(str)
-	tag_list = transition.keys()
 	answer = ""
 	counter = 1
-	debug = 0
-	tag_list.remove("start_state")
+
 	for tag in tag_list:
-		# print transition["start_state"][tag], emission[tag][words[0]]
+
 		if vocabulary[words[0]] == 1:
 			probability[(tag, counter)] = transition["start_state"][tag] + emission[tag][words[0]]
 		else:
 			probability[(tag, counter)] = transition["start_state"][tag]
-		backpointer[(tag, counter)] = "start_state"
-		# print probability[(tag, counter)], tag
-		debug += 1
-	counter += 1 
-	# print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-	for w in words[1:]:
 
+		backpointer[(tag, counter)] = "start_state"
+	
+	counter += 1 
+	next_tag_list = tag_list
+	
+	for w in words[1:]:
+		tag_list1 = next_tag_list if len(next_tag_list) > 0 else tag_list
+		next_tag_list = []
 		for tag in tag_list:
-			if vocabulary[w] == 1:
-				probability[(tag, counter)] = max([probability[(tag2, counter - 1)] + transition[tag2][tag] + emission[tag][w] for tag2 in tag_list])
-			else:
-				probability[(tag, counter)] = max([probability[(tag2, counter - 1)] + transition[tag2][tag] for tag2 in tag_list])
-			
-			backpointer[(tag, counter)] = max(tag_list, key = lambda tag2: probability[(tag2, counter - 1)] + transition[tag2][tag])
-			# print probability[(tag, counter)], backpointer[(tag, counter)], tag
+
+			emission_value = emission[tag][w] if vocabulary[w] == 1 else 0
+			backpointer[(tag, counter)] = max(tag_list1, key = lambda tag2: probability[(tag2, counter - 1)] + transition[tag2][tag])
+			prev_tag = backpointer[(tag, counter)]
+			probability[(tag, counter)] = probability[(prev_tag, counter - 1)] + transition[prev_tag][tag] + emission_value
+
+			if probability[(tag, counter)] >= MIN_VALUE:
+				next_tag_list.append(tag)
+		
 		counter += 1
-		# print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-		# raw_input()
 	
 	most_likely_tags = []
-	# print [probability[(tag, counter)] for tag in tag_list], len(words)
-	# raw_input()
-	# for tag in tag_list:
-	# 	print probability[(tag, counter - 1)], tag
 	most_likely_tags.append(max(tag_list, key = lambda tag: probability[(tag, counter - 1)]))
 	counter = len(words)
 
-	# print words
-
 	while counter > 0:
-		# print backpointer[(most_likely_tags[-1], counter)], counter
 		most_likely_tags.append(backpointer[(most_likely_tags[-1], counter)])
 		counter -= 1
-		# raw_input()
-
-
 
 	most_likely_tags = most_likely_tags[::-1][1:]
 
 	for i in range(0, len(words)):
 		answer += words[i] + "/" + most_likely_tags[i] + " "
 
-	# print answer
-
 	return answer + "\n"
-
 	
 
 
@@ -111,13 +90,15 @@ emission = defaultdict(lambda: defaultdict(lambda: -99999))
 vocabulary = load_model(hmm_model_path, transition, emission)
 test_file = open(test_file_path)
 output_file = open("hmmoutput.txt", "w")
-count = 1
+output_data = ""
+tag_list = transition.keys()
+tag_list.remove("start_state")
+
 for l in test_file:
-	# print count, " done"
-	# count += 1 
-	output_file.write(tag_data(l.rstrip("\n"), transition, emission, vocabulary))
+	output_data += tag_data(l.rstrip("\n"), transition, emission, vocabulary, tag_list)
 
 stop = timeit.default_timer()
+output_file.write(output_data)
+
 
 print stop - start
-
